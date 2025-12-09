@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   getAllClasses,
@@ -14,6 +14,10 @@ const AssignQuestions = () => {
     classId: '',
     questionIds: []
   })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [assignmentTitle, setAssignmentTitle] = useState('')
+  const [showSelectAll, setShowSelectAll] = useState(false)
 
   useEffect(() => {
     dispatch(getAllClasses())
@@ -21,15 +25,48 @@ const AssignQuestions = () => {
     dispatch(getAllAssignments())
   }, [dispatch])
 
+  // Filter questions: hide those already assigned to selected class
+  const assignedQuestionIds = useMemo(() => {
+    const classAssignments = assignments.filter(a => a.classId?._id === formData.classId)
+    const assignedIds = new Set()
+    classAssignments.forEach(assignment => {
+      assignment.questionIds?.forEach(qId => assignedIds.add(qId))
+    })
+    return assignedIds
+  }, [formData.classId, assignments])
+
+  // Get available questions (not assigned to selected class)
+  const availableQuestions = useMemo(() => {
+    return questions.filter(q => !assignedQuestionIds.has(q._id))
+  }, [questions, assignedQuestionIds])
+
+  // Filter by search query
+  const filteredQuestions = useMemo(() => {
+    return availableQuestions.filter(q =>
+      q.question.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [availableQuestions, searchQuery])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!formData.classId || formData.questionIds.length === 0) {
       alert('Please select a class and at least one question')
       return
     }
-    await dispatch(assignQuestions(formData))
-    setFormData({ classId: '', questionIds: [] })
-    dispatch(getAllAssignments())
+    
+    try {
+      await dispatch(assignQuestions(formData))
+      setSuccessMessage(`✓ Successfully assigned ${formData.questionIds.length} question(s) to the class!`)
+      setFormData({ classId: '', questionIds: [] })
+      setSearchQuery('')
+      setAssignmentTitle('')
+      setShowSelectAll(false)
+      dispatch(getAllAssignments())
+      
+      setTimeout(() => setSuccessMessage(''), 3000)
+    } catch (err) {
+      console.error('Error assigning questions:', err)
+    }
   }
 
   const toggleQuestion = (questionId) => {
@@ -39,96 +76,238 @@ const AssignQuestions = () => {
     setFormData({ ...formData, questionIds })
   }
 
+  const toggleSelectAll = () => {
+    if (showSelectAll) {
+      setFormData({ ...formData, questionIds: [] })
+    } else {
+      setFormData({ ...formData, questionIds: filteredQuestions.map(q => q._id) })
+    }
+    setShowSelectAll(!showSelectAll)
+  }
+
+  const assignedCount = assignments.filter(a => a.classId?._id === formData.classId).length
+  const totalQuestionsInClass = assignments
+    .filter(a => a.classId?._id === formData.classId)
+    .reduce((sum, a) => sum + (a.questionIds?.length || 0), 0)
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Assign Questions to Class</h1>
-
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">📝 Create Quiz Assignment</h1>
+          <p className="text-gray-600 text-lg">
+            Assign new questions to your class. Only unassigned questions are shown.
+          </p>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Create Assignment</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Class
-              </label>
-              <select
-                required
-                value={formData.classId}
-                onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              >
-                <option value="">Choose a class</option>
-                {classes.map((cls) => (
-                  <option key={cls._id} value={cls._id}>
-                    {cls.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Questions
-              </label>
-              <div className="border border-gray-300 rounded-md p-4 max-h-96 overflow-y-auto">
-                {loading ? (
-                  <div className="text-center py-4">Loading questions...</div>
-                ) : questions.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">No questions available</div>
-                ) : (
-                  questions.map((question) => (
-                    <div key={question._id} className="mb-2">
-                      <label className="flex items-start space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.questionIds.includes(question._id)}
-                          onChange={() => toggleQuestion(question._id)}
-                          className="mt-1"
-                        />
-                        <span className="text-sm">{question.question}</span>
-                      </label>
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg text-red-700">
+            <p className="font-semibold">Error</p>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg text-green-700 animate-pulse">
+            <p className="font-semibold">{successMessage}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Form */}
+          <div className="lg:col-span-2">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Class Selection Card */}
+              <div className="bg-white rounded-xl shadow-lg p-6 border-t-4 border-blue-500">
+                <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wide">
+                  🎯 Select Class
+                </label>
+                <select
+                  required
+                  value={formData.classId}
+                  onChange={(e) => {
+                    setFormData({ ...formData, classId: e.target.value })
+                    setSearchQuery('')
+                  }}
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition duration-200 text-gray-700 font-medium"
+                >
+                  <option value="">Choose a class...</option>
+                  {classes.map((cls) => (
+                    <option key={cls._id} value={cls._id}>
+                      {cls.name} ({cls.students?.length || 0} students)
+                    </option>
+                  ))}
+                </select>
+
+                {/* Class Info Card */}
+                {formData.classId && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-semibold text-blue-600 uppercase">Total Quizzes</p>
+                        <p className="text-2xl font-bold text-blue-900">{assignedCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-blue-600 uppercase">Total Questions</p>
+                        <p className="text-2xl font-bold text-blue-900">{totalQuestionsInClass}</p>
+                      </div>
                     </div>
-                  ))
+                  </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Selected: {formData.questionIds.length} question(s)
-              </p>
-            </div>
-            <button
-              type="submit"
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Assign Questions
-            </button>
-          </form>
-        </div>
 
-        <div className="bg-white shadow rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Assignments</h2>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {assignments.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">No assignments yet</div>
-            ) : (
-              assignments.map((assignment) => (
-                <div key={assignment._id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="font-semibold text-gray-900 mb-2">
-                    {assignment.classId?.name || 'Unknown Class'}
+              {/* Assignment Title (Optional) */}
+              <div className="bg-white rounded-xl shadow-lg p-6">
+                <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wide">
+                  📌 Quiz Title (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={assignmentTitle}
+                  onChange={(e) => setAssignmentTitle(e.target.value)}
+                  placeholder="e.g., Quiz #1 - Chapter 1"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition duration-200"
+                />
+              </div>
+
+              {/* Questions Selection */}
+              {formData.classId && (
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">📚 Available Questions</h3>
+                      <p className="text-sm text-gray-600">
+                        {filteredQuestions.length} of {availableQuestions.length} questions available
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-600">{formData.questionIds.length}</p>
+                      <p className="text-xs text-gray-600">selected</p>
+                    </div>
                   </div>
-                  <div className="text-sm text-gray-600 mb-2">
-                    {assignment.questionIds?.length || 0} question(s)
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Assigned: {new Date(assignment.assignedAt).toLocaleString()}
+
+                  {/* Search Bar */}
+                  <input
+                    type="text"
+                    placeholder="🔍 Search questions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 mb-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition duration-200"
+                  />
+
+                  {/* Select All Checkbox */}
+                  {filteredQuestions.length > 0 && (
+                    <div className="mb-4 pb-4 border-b-2 border-gray-200">
+                      <label className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded-lg">
+                        <input
+                          type="checkbox"
+                          checked={showSelectAll}
+                          onChange={toggleSelectAll}
+                          className="w-5 h-5 text-blue-600 cursor-pointer"
+                        />
+                        <span className="font-semibold text-gray-700">
+                          {showSelectAll ? 'Deselect All' : 'Select All Filtered'}
+                        </span>
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Questions List */}
+                  <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                    {loading ? (
+                      <div className="text-center py-8">
+                        <div className="inline-block animate-spin">⏳</div>
+                        <p className="text-gray-600 mt-2">Loading questions...</p>
+                      </div>
+                    ) : filteredQuestions.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">
+                          {searchQuery ? '❌ No questions match your search' : '✓ All questions already assigned!'}
+                        </p>
+                      </div>
+                    ) : (
+                      filteredQuestions.map((question, index) => (
+                        <label
+                          key={question._id}
+                          className="flex items-start space-x-3 cursor-pointer p-3 hover:bg-blue-50 rounded-lg transition duration-200 border border-gray-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.questionIds.includes(question._id)}
+                            onChange={() => toggleQuestion(question._id)}
+                            className="w-5 h-5 text-blue-600 cursor-pointer mt-1 flex-shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 break-words">
+                              <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold mr-2">
+                                Q{index + 1}
+                              </span>
+                              {question.question}
+                            </p>
+                            {question.options && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Options: {question.options.length}
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      ))
+                    )}
                   </div>
                 </div>
-              ))
-            )}
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={!formData.classId || formData.questionIds.length === 0}
+                className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-400 disabled:cursor-not-allowed transition duration-200 text-lg shadow-lg"
+              >
+                {formData.questionIds.length === 0
+                  ? '👆 Select Questions to Continue'
+                  : `✓ Assign ${formData.questionIds.length} Question${formData.questionIds.length !== 1 ? 's' : ''}`}
+              </button>
+            </form>
+          </div>
+
+          {/* Sidebar - Recent Assignments */}
+          <div className="bg-white rounded-xl shadow-lg p-6 h-fit">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">📊 Recent Assignments</h3>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {assignments.length === 0 ? (
+                <div className="text-center py-6 text-gray-500">
+                  <p>No assignments yet</p>
+                </div>
+              ) : (
+                assignments.slice(0, 10).map((assignment, idx) => (
+                  <div
+                    key={assignment._id}
+                    className="border-l-4 border-blue-500 pl-4 py-3 hover:bg-blue-50 rounded transition duration-200"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900 text-sm">
+                          Quiz #{assignment.quizNumber || idx + 1}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {assignment.classId?.name || 'Unknown Class'}
+                        </p>
+                        <p className="text-xs font-semibold text-blue-600 mt-1">
+                          {assignment.questionIds?.length || 0} questions
+                        </p>
+                      </div>
+                      <span className="text-xl">📌</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {new Date(assignment.assignedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

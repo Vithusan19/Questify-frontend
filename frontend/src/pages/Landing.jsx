@@ -58,13 +58,13 @@ const Landing = () => {
                   to="/login"
                   className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-lg font-semibold rounded-xl shadow-lg text-white bg-blue-600 hover:bg-blue-700 transition transform hover:scale-[1.02] active:scale-95 duration-200"
                 >
-                  Start Quizzing Now
+                  Login
                 </Link>
                 <Link
-                  to="/about"
-                  className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-lg font-semibold rounded-xl text-gray-700 bg-white hover:bg-gray-100 transition shadow-md transform hover:scale-[1.02] active:scale-95 duration-200"
+                  to="/register"
+                  className="inline-flex items-center justify-center px-8 py-3 border border-blue-600 text-lg font-semibold rounded-xl text-blue-600 bg-white hover:bg-blue-50 transition shadow-md transform hover:scale-[1.02] active:scale-95 duration-200"
                 >
-                  Learn More
+                  Sign Up
                 </Link>
               </div>
             </div>

@@ -2,10 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector } from 'react-redux'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import Register from './pages/Register'
 import AdminDashboard from './pages/AdminDashboard'
 import StudentDashboard from './pages/StudentDashboard'
 import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
+import ResearchSummary from './pages/ResearchSummary'
 //import Messages from './pages/Messages'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -17,6 +19,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/research" element={<ResearchSummary />} />
 
         <Route
           path="/admin/*"

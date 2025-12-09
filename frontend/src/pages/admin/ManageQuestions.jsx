@@ -16,11 +16,9 @@ const ManageQuestions = () => {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [formData, setFormData] = useState({
     question: '',
-    options: ['', '', '', ''],
+    options: ['', '', '', '', ''],
     correctAnswer: 0,
-    subject: '',
-    imageUrl: '',
-    classIds: []
+    imageUrl: ''
   })
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imageError, setImageError] = useState(null)
@@ -60,9 +58,7 @@ const ManageQuestions = () => {
       question: question.question,
       options: question.options,
       correctAnswer: question.correctAnswer,
-      subject: question.subject || '',
-      imageUrl: question.imageUrl || '',
-      classIds: (question.classIds || []).map((cls) => cls._id || cls)
+      imageUrl: question.imageUrl || ''
     })
     setShowModal(true)
   }
@@ -79,11 +75,9 @@ const ManageQuestions = () => {
     setEditingQuestion(null)
     setFormData({
       question: '',
-      options: ['', '', '', ''],
+      options: ['', '', '', '', ''],
       correctAnswer: 0,
-      subject: '',
-      imageUrl: '',
-      classIds: []
+      imageUrl: ''
     })
     setImageError(null)
     setImageStatus('')
@@ -291,38 +285,7 @@ const handleImageUpload = async (e) => {
                   </div>
                 )}
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Assign to Classes (Optional)
-                </label>
-                <select
-                  multiple
-                  value={formData.classIds}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions, option => option.value)
-                    setFormData({ ...formData, classIds: selected })
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                >
-                  {classes.map((cls) => (
-                    <option key={cls._id} value={cls._id}>
-                      {cls.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
-              </div>
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Options
